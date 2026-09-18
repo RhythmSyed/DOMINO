@@ -309,7 +309,9 @@ def main(usr_args):
 
     st_seed = 100000 * (1 + seed)
     suc_nums = []
-    test_num = 100
+    # SUAVE: benchmark default is 100 episodes; DOMINO_TEST_NUM overrides for
+    # short local runs (SRs at other counts are not comparable to published numbers)
+    test_num = int(os.environ.get("DOMINO_TEST_NUM", 100))
     topk = 1
 
     # model = get_model(usr_args)
@@ -389,9 +391,29 @@ def eval_policy(task_name,
     clear_cache_freq = args["clear_cache_freq"]
 
     args["eval_mode"] = True
-    
+
     # Initialize aggregated metrics collector
     aggregated_metrics = AggregatedMetrics()
+
+    # SUAVE crash-resume: the parallel runner sets DOMINO_PROGRESS_FILE and respawns
+    # the client on a nonzero exit (segfault/stall). Loop state incl. the aggregated
+    # metrics is pickled after every episode, so a crash only costs the episode in
+    # flight and the final _metrics.json still covers all test_num episodes.
+    _progress_file = os.environ.get("DOMINO_PROGRESS_FILE", "")
+    if _progress_file and os.path.exists(_progress_file):
+        import pickle
+        with open(_progress_file, "rb") as _pf:
+            _st = pickle.load(_pf)
+        succ_seed = _st["succ_seed"]
+        now_seed = _st["now_seed"]
+        now_id = _st["now_id"]
+        suc_test_seed_list = _st["suc_test_seed_list"]
+        TASK_ENV.suc = _st["suc"]
+        TASK_ENV.test_num = _st["test_num"]
+        aggregated_metrics = _st["aggregated_metrics"]
+        print(f"[resume] {task_name}: continuing at episode "
+              f"{TASK_ENV.test_num}/{test_num} (suc={TASK_ENV.suc}, "
+              f"next seed={now_seed})", flush=True)
 
     while succ_seed < test_num:
         render_freq = args["render_freq"]
@@ -433,6 +455,10 @@ def eval_policy(task_name,
             TASK_ENV._saved_dynamic_motion_info = saved_dynamic_motion_info
         
         episode_info_list = [episode_info["info"]]
+        # SUAVE: expose the expert episode's placeholder dict (incl. '{a}' arm tag)
+        # to the policy — setup_demo above reset TASK_ENV.info, and the sampled
+        # instruction often omits the arm.
+        TASK_ENV.episode_info = episode_info["info"]
         results = generate_episode_descriptions(args["task_name"], episode_info_list, test_num)
         instruction = np.random.choice(results[0][instruction_type])
         TASK_ENV.set_instruction(instruction=instruction)  # set language instruction
@@ -590,6 +616,18 @@ def eval_policy(task_name,
             f"current seed: \033[90m{now_seed}\033[0m\n"
         )
         now_seed += 1
+
+        if _progress_file:
+            import pickle
+            os.makedirs(os.path.dirname(_progress_file) or ".", exist_ok=True)
+            _tmp = _progress_file + ".tmp"
+            with open(_tmp, "wb") as _pf:
+                pickle.dump({"succ_seed": succ_seed, "now_seed": now_seed,
+                             "now_id": now_id,
+                             "suc_test_seed_list": suc_test_seed_list,
+                             "suc": TASK_ENV.suc, "test_num": TASK_ENV.test_num,
+                             "aggregated_metrics": aggregated_metrics}, _pf)
+            os.replace(_tmp, _progress_file)  # atomic: never a torn file
 
     return now_seed, TASK_ENV.suc, aggregated_metrics
 

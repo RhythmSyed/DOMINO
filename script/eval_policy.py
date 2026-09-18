@@ -165,7 +165,8 @@ def main(usr_args):
 
     st_seed = 100000 * (1 + seed)
     suc_nums = []
-    test_num = 100
+    # env override for smoke tests (mirrors our eval_policy_client.py patch)
+    test_num = int(os.environ.get("DOMINO_TEST_NUM", 100))
     topk = 1
 
     model = get_model(usr_args)

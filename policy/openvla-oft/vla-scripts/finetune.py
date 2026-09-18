@@ -850,16 +850,17 @@ def save_training_checkpoint(
         dist.barrier()
 
     if cfg.use_lora and cfg.merge_lora_during_training:
-        base_vla = AutoModelForVision2Seq.from_pretrained(
-            cfg.vla_path,
-            torch_dtype=torch.bfloat16,
-            low_cpu_mem_usage=True,
-            trust_remote_code=True,
-        )
-        merged_vla = PeftModel.from_pretrained(base_vla, adapter_dir)
-        merged_vla = merged_vla.merge_and_unload()
-
+        # Merge on the main process only: it is the only rank that saves, and on multi-node runs
+        # (separate local disks) the adapter written above exists only on the main node.
         if distributed_state.is_main_process:
+            base_vla = AutoModelForVision2Seq.from_pretrained(
+                cfg.vla_path,
+                torch_dtype=torch.bfloat16,
+                low_cpu_mem_usage=True,
+                trust_remote_code=True,
+            )
+            merged_vla = PeftModel.from_pretrained(base_vla, adapter_dir)
+            merged_vla = merged_vla.merge_and_unload()
             merged_vla.save_pretrained(checkpoint_dir)
             print(f"Saved merged model for Step {log_step} at: {checkpoint_dir}")
 

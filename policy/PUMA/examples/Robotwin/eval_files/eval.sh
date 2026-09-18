@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ROBOTWIN_PATH=/path/to/DOMINO
+ROBOTWIN_PATH=/home/rhythmsyed/Desktop/suave/third_party/domino
 
 policy_name="model2robotwin_interface"
 task_name=${1}
@@ -42,5 +42,5 @@ if [ -n "${host}" ]; then
 fi
 
 PYTHONWARNINGS=ignore::UserWarning \
-python script/eval_policy.py --config $DEPLOY_POLICY_PATH \
+/home/rhythmsyed/miniconda3/envs/domino/bin/python script/eval_policy.py --config $DEPLOY_POLICY_PATH \
     --overrides "${override_args[@]}"

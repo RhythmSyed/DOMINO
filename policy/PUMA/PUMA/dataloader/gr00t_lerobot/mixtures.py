@@ -176,4 +176,46 @@ DATASET_NAMED_MIXTURES = {
         ("shake_bottle_horizontally_static", 1.0, "robotwin"),
         ("stamp_seal_static", 1.0, "robotwin"),
     ],
+
+    # LIBERO 5-suite cotrain on the ORIGINAL (unfiltered) demos — the exact
+    # corpus behind SUAVE's libero.parquet (6500 demos incl. libero_90),
+    # converted by suave/scripts/convert_libero_original_to_lerobot.py.
+    # The libero_franka data config already ships in data_config.py.
+    "libero_all": [
+        ("libero_object_original_lerobot", 1.0, "libero_franka"),
+        ("libero_goal_original_lerobot", 1.0, "libero_franka"),
+        ("libero_spatial_original_lerobot", 1.0, "libero_franka"),
+        ("libero_10_original_lerobot", 1.0, "libero_franka"),
+        ("libero_90_original_lerobot", 1.0, "libero_franka"),
+    ],
+    # DOMINO franka-panda, single-arm-filtered (the 25 tasks / 18,231 episodes of
+    # SUAVE's domino.parquet) — same-data PUMA baseline. LEROBOT_DOMINO_FRANKA/<task>/
+    "domino_franka25": [
+        ("adjust_bottle", 1.0, "robotwin_franka"),
+        ("beat_block_hammer", 1.0, "robotwin_franka"),
+        ("click_alarmclock", 1.0, "robotwin_franka"),
+        ("click_bell", 1.0, "robotwin_franka"),
+        ("dump_bin_bigbin", 1.0, "robotwin_franka"),
+        ("move_can_pot", 1.0, "robotwin_franka"),
+        ("move_pillbottle_pad", 1.0, "robotwin_franka"),
+        ("move_playingcard_away", 1.0, "robotwin_franka"),
+        ("move_stapler_pad", 1.0, "robotwin_franka"),
+        ("place_a2b_left", 1.0, "robotwin_franka"),
+        ("place_a2b_right", 1.0, "robotwin_franka"),
+        ("place_bread_basket", 1.0, "robotwin_franka"),
+        ("place_container_plate", 1.0, "robotwin_franka"),
+        ("place_empty_cup", 1.0, "robotwin_franka"),
+        ("place_fan", 1.0, "robotwin_franka"),
+        ("place_mouse_pad", 1.0, "robotwin_franka"),
+        ("place_object_scale", 1.0, "robotwin_franka"),
+        ("place_object_stand", 1.0, "robotwin_franka"),
+        ("place_phone_stand", 1.0, "robotwin_franka"),
+        ("place_shoe", 1.0, "robotwin_franka"),
+        ("press_stapler", 1.0, "robotwin_franka"),
+        ("rotate_qrcode", 1.0, "robotwin_franka"),
+        ("shake_bottle", 1.0, "robotwin_franka"),
+        ("shake_bottle_horizontally", 1.0, "robotwin_franka"),
+        ("stamp_seal", 1.0, "robotwin_franka"),
+    ],
+
 }

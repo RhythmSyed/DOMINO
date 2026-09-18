@@ -154,7 +154,11 @@ class ModelClient:
 
         current_action = self.raw_actions[action_idx]
         self._push_history_frame(images)
-        current_action = current_action[[0, 1, 2, 3, 4, 5, 12, 6, 7, 8, 9, 10, 11, 13]]
+        # loader order [L joints, R joints, L grip, R grip] -> robot vector
+        # [L arm, L grip, R arm, R grip]; n_j = 6 (aloha, 14-dim) or 7 (franka pair, 16-dim)
+        n_j = (len(current_action) - 2) // 2
+        order = list(range(n_j)) + [2 * n_j] + list(range(n_j, 2 * n_j)) + [2 * n_j + 1]
+        current_action = current_action[order]
         return current_action
 
     @staticmethod
@@ -162,8 +166,7 @@ class ModelClient:
         """
         Normalize the state
         """
-        mask = [True, True, True, True, True, True, True, True, True, True, True, True, False, False]
-        mask = np.array(mask, dtype=bool)
+        mask = np.array([True] * (len(state) - 2) + [False, False], dtype=bool)  # joints min-max, grippers binary
         state_high, state_low = np.array(state_norm_stats["max"]), np.array(state_norm_stats["min"])
         normalized_state = np.where(
             mask,

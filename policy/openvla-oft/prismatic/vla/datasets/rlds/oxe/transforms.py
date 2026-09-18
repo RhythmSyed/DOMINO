@@ -931,6 +931,7 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "aloha1_scoop_X_into_bowl_45_demos": aloha_dataset_transform,
     "aloha1_put_X_into_pot_300_demos": aloha_dataset_transform,
     "aloha_place_object_scale_builder":aloha_dataset_transform,
+    "domino_franka25": aloha_dataset_transform,
     "aloha_move_can_pot_builder":aloha_dataset_transform,
     "aloha_move_can_pot":aloha_dataset_transform,
     "aloha_put_object_cabinet":aloha_dataset_transform,

@@ -70,7 +70,10 @@ class Sapien_TEST(gym.Env):
         sapien.render.set_camera_shader_dir("rt")
         sapien.render.set_ray_tracing_samples_per_pixel(32)
         sapien.render.set_ray_tracing_path_depth(8)
-        sapien.render.set_ray_tracing_denoiser("oidn")
+        # H100/sm90: bundled OIDN CUDA denoiser -> illegal memory access.
+        # Same env-driven override as envs/_base_task.py.
+        sapien.render.set_ray_tracing_denoiser(
+            os.environ.get("SUAVE_RT_DENOISER", "oidn"))
 
         # declare sapien scene
         scene_config = sapien.SceneConfig()

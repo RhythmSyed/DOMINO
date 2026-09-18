@@ -1,7 +1,7 @@
 #!/bin/bash
 export PYTHONPATH=$(pwd):${PYTHONPATH}
-export puma_python=/path/to/puma/bin/python
-your_ckpt=/path/to/your/checkpoint/steps_100000_pytorch_model.pt
+export puma_python=/home/rhythmsyed/miniconda3/envs/puma/bin/python
+your_ckpt=/home/rhythmsyed/Desktop/suave/third_party/domino/policy/PUMA/playground/Pretrained_models/PUMA-ckpt/checkpoints/steps_100000_pytorch_model.pt
 gpu_id=0
 port=9001
 

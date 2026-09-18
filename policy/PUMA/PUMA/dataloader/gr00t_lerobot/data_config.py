@@ -464,7 +464,10 @@ class Libero4in1DataConfig:
     language_keys = ["annotation.human.action.task_description"]
 
     observation_indices = [0]
-    action_indices = list(range(8))
+    # 16 = PUMA's chunk (future_action_window_size 15 in every PUMA framework
+    # config, incl. our DOMINO row). StarVLA's original 8 here mismatches the
+    # action head: l1_loss(pred[16] vs target[8]) at PUMA.py forward.
+    action_indices = list(range(16))
 
 
     def modality_config(self):
@@ -914,6 +917,10 @@ ROBOT_TYPE_CONFIG_MAP = {
     "demo_sim_franka_delta_joints": SingleFrankaRobotiqDeltaJointsDataConfig(),
     "arx_x5": ArxX5DataConfig(),
     "robotwin": AgilexDataConfig(),
+    # DOMINO franka-panda pair (SUAVE baseline): identical modality keys to the
+    # aloha rig; joint widths (7 vs 6 per arm -> 16-dim) come from the dataset's
+    # meta/modality.json, so the Agilex config applies unchanged.
+    "robotwin_franka": AgilexDataConfig(),
     "fourier_gr1_arms_waist": FourierGr1ArmsWaistDataConfig(),
     
     "custom_robot_config": SingleFrankaRobotiqDeltaEefDataConfig(),

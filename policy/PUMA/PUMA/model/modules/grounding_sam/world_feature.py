@@ -204,7 +204,8 @@ class WorldFeatureSupervisor(nn.Module):
         mask_np = self._mask_to_numpy(mask)
         box_np = self._box_to_numpy(box)
         with tempfile.NamedTemporaryFile(dir=cache_path.parent, suffix=".npz", delete=False) as tmp_file:
-            np.savez(tmp_file, mask=mask_np, box=box_np)
+            # compressed: binary masks shrink ~20x; np.load reads both formats
+            np.savez_compressed(tmp_file, mask=mask_np, box=box_np)
             tmp_name = tmp_file.name
         os.replace(tmp_name, cache_path)
 

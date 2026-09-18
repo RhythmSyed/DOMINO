@@ -37,6 +37,14 @@ ALOHA_CONSTANTS = {
     "ACTION_PROPRIO_NORMALIZATION_TYPE": NormalizationType.BOUNDS,
 }
 
+# DOMINO franka-panda pair (SUAVE same-data baseline): 2 x (7 joints + gripper) = 16
+FRANKA_PAIR_CONSTANTS = {
+    "NUM_ACTIONS_CHUNK": 25,
+    "ACTION_DIM": 16,
+    "PROPRIO_DIM": 16,
+    "ACTION_PROPRIO_NORMALIZATION_TYPE": NormalizationType.BOUNDS,
+}
+
 BRIDGE_CONSTANTS = {
     "NUM_ACTIONS_CHUNK": 5,
     "ACTION_DIM": 7,
@@ -51,6 +59,8 @@ def detect_robot_platform():
 
     if "libero" in cmd_args:
         return "LIBERO"
+    elif "franka" in cmd_args or "domino" in cmd_args:
+        return "FRANKA_PAIR"
     elif "aloha" in cmd_args:
         return "ALOHA"
     elif "bridge" in cmd_args:
@@ -68,6 +78,8 @@ if ROBOT_PLATFORM == "LIBERO":
     constants = LIBERO_CONSTANTS
 elif ROBOT_PLATFORM == "ALOHA":
     constants = ALOHA_CONSTANTS
+elif ROBOT_PLATFORM == "FRANKA_PAIR":
+    constants = FRANKA_PAIR_CONSTANTS
 elif ROBOT_PLATFORM == "BRIDGE":
     constants = BRIDGE_CONSTANTS
 

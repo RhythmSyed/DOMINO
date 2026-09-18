@@ -41,8 +41,10 @@ def make_oxe_dataset_kwargs(
         dataset_kwargs["absolute_action_mask"] = [False] * 9 + [True]
         dataset_kwargs["action_normalization_mask"] = [True] * 9 + [False]
     elif dataset_kwargs["action_encoding"] is ActionEncoding.JOINT_POS_BIMANUAL:
-        dataset_kwargs["absolute_action_mask"] = [True] * 14
-        dataset_kwargs["action_normalization_mask"] = [True] * 14
+        # DOMINO fork: mask length follows the detected platform (ALOHA 14, FRANKA_PAIR 16) instead of a hardcoded 14
+        from prismatic.vla.constants import ACTION_DIM
+        dataset_kwargs["absolute_action_mask"] = [True] * ACTION_DIM
+        dataset_kwargs["action_normalization_mask"] = [True] * ACTION_DIM
     dataset_kwargs["action_proprio_normalization_type"] = action_proprio_normalization_type
 
     # Adjust Loaded Camera Views

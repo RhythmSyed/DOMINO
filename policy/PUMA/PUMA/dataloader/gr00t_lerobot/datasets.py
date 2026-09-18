@@ -2296,13 +2296,19 @@ class LeRobotMixtureDataset(Dataset):
                                 future_wrist_keys[idx].append(video_key)
                     future_images = []
                     future_frame_keys = []
+                    # get_video_by_offsets clamps to the last frame, so key by the clamped index too
+                    _traj_len = dataset.trajectory_lengths[dataset.get_trajectory_index(trajectory_id)]
                     for i in range(future_k):
                         if future_prim[i]:
                             future_images.append([future_prim[i][0]])
-                            future_frame_keys.append([f"{trajectory_id}:{step}:{future_offsets[i]}:{future_prim_keys[i][0]}"])
+                            # Key by the ABSOLUTE future frame (traj:frame:cam), not (step, offset):
+                            # the same physical frame is a future frame of up to future_k samples and
+                            # grounding depends only on (pixels, prompt), so this dedupes the
+                            # GroundingDINO+SAM2 cache future_k-fold with identical results.
+                            future_frame_keys.append([f"{trajectory_id}:{min(step + future_offsets[i], _traj_len - 1)}:{future_prim_keys[i][0]}"])
                         elif future_wrist[i]:
                             future_images.append([future_wrist[i][0]])
-                            future_frame_keys.append([f"{trajectory_id}:{step}:{future_offsets[i]}:{future_wrist_keys[i][0]}"])
+                            future_frame_keys.append([f"{trajectory_id}:{min(step + future_offsets[i], _traj_len - 1)}:{future_wrist_keys[i][0]}"])
                         else:
                             future_images.append([])
                             future_frame_keys.append([])

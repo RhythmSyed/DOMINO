@@ -18,6 +18,8 @@ import openpi.models.pi0_config as pi0_config
 import openpi.models.pi0_fast as pi0_fast
 import openpi.models.tokenizer as _tokenizer
 import openpi.policies.aloha_policy as aloha_policy
+import openpi.policies.franka_pair_policy as franka_pair_policy
+import openpi.policies.xarm_policy as xarm_policy
 import openpi.policies.droid_policy as droid_policy
 import openpi.policies.libero_policy as libero_policy
 import openpi.shared.download as _download
@@ -221,6 +223,116 @@ class SimpleDataConfig(DataConfigFactory):
             self.create_base_config(assets_dirs, model_config),
             data_transforms=self.data_transforms(model_config),
             model_transforms=self.model_transforms(model_config),
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class LeRobotFrankaPairDataConfig(DataConfigFactory):
+    """DOMINO franka-panda pair (16-dim joints) — LeRobotAlohaDataConfig minus the
+    ALOHA-specific joint flip / gripper remap, with the delta mask widened to
+    two 7-DoF arms: make_bool_mask(7, -1, 7, -1)."""
+
+    use_delta_joint_actions: bool = True
+    default_prompt: str | None = None
+    repack_transforms: tyro.conf.Suppress[_transforms.Group] = dataclasses.field(
+        default=_transforms.Group(
+            inputs=[
+                _transforms.RepackTransform(
+                    {
+                        "images": {
+                            "cam_high": "observation.images.cam_high",
+                            "cam_left_wrist": "observation.images.cam_left_wrist",
+                            "cam_right_wrist": "observation.images.cam_right_wrist",
+                        },
+                        "state": "observation.state",
+                        "actions": "action",
+                        "prompt": "prompt",
+                    }
+                )
+            ]
+        )
+    )
+    action_sequence_keys: Sequence[str] = ("action",)
+
+    @override
+    def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
+        data_transforms = _transforms.Group(
+            inputs=[franka_pair_policy.FrankaPairInputs()],
+            outputs=[franka_pair_policy.FrankaPairOutputs()],
+        )
+        if self.use_delta_joint_actions:
+            delta_action_mask = _transforms.make_bool_mask(7, -1, 7, -1)
+            data_transforms = data_transforms.push(
+                inputs=[_transforms.DeltaActions(delta_action_mask)],
+                outputs=[_transforms.AbsoluteActions(delta_action_mask)],
+            )
+        model_transforms = ModelTransformFactory(default_prompt=self.default_prompt)(model_config)
+        # π0-FAST: the FAST branch of ModelTransformFactory tokenizes the UNPADDED actions at train
+        # time (no PadStatesAndActions before TokenizeFASTInputs), so the tokens encode
+        # (action_horizon, 16). ExtractFASTActions is built with model_config.action_dim (32) and
+        # every decode fails -> zeros -> "hold pose" at eval (2026-09-11: pi0-FAST RC 0.8%). Decode
+        # with the trained action dim instead; FrankaPairOutputs then slices :16 as usual.
+        model_transforms = _transforms.Group(
+            inputs=model_transforms.inputs,
+            outputs=[dataclasses.replace(o, action_dim=franka_pair_policy.FRANKA_PAIR_DIM)
+                     if isinstance(o, _transforms.ExtractFASTActions) else o
+                     for o in model_transforms.outputs],
+        )
+        return dataclasses.replace(
+            self.create_base_config(assets_dirs, model_config),
+            repack_transforms=self.repack_transforms,
+            data_transforms=data_transforms,
+            model_transforms=model_transforms,
+            action_sequence_keys=self.action_sequence_keys,
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class LeRobotXArmDataConfig(DataConfigFactory):
+    """SUAVE real tasks on the xArm7/GELLO rig (LEROBOT_REAL_<task>): 7-dim
+    [dxyz, d_axis_angle, gripper] per-step deltas at 30 Hz + 7-dim ee state, two
+    cameras (front, wrist). Actions are ALREADY deltas -> no DeltaActions push."""
+
+    default_prompt: str | None = None
+    repack_transforms: tyro.conf.Suppress[_transforms.Group] = dataclasses.field(
+        default=_transforms.Group(
+            inputs=[
+                _transforms.RepackTransform(
+                    {
+                        "images": {
+                            "cam_high": "observation.images.cam_high",
+                            "cam_left_wrist": "observation.images.cam_left_wrist",
+                        },
+                        "state": "observation.state",
+                        "actions": "action",
+                        "prompt": "prompt",
+                    }
+                )
+            ]
+        )
+    )
+    action_sequence_keys: Sequence[str] = ("action",)
+
+    @override
+    def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
+        data_transforms = _transforms.Group(
+            inputs=[xarm_policy.XArmInputs()],
+            outputs=[xarm_policy.XArmOutputs()],
+        )
+        model_transforms = ModelTransformFactory(default_prompt=self.default_prompt)(model_config)
+        # same FAST decode fix as LeRobotFrankaPairDataConfig (decode with the trained action dim)
+        model_transforms = _transforms.Group(
+            inputs=model_transforms.inputs,
+            outputs=[dataclasses.replace(o, action_dim=xarm_policy.XARM_DIM)
+                     if isinstance(o, _transforms.ExtractFASTActions) else o
+                     for o in model_transforms.outputs],
+        )
+        return dataclasses.replace(
+            self.create_base_config(assets_dirs, model_config),
+            repack_transforms=self.repack_transforms,
+            data_transforms=data_transforms,
+            model_transforms=model_transforms,
+            action_sequence_keys=self.action_sequence_keys,
         )
 
 
@@ -550,6 +662,73 @@ class TrainConfig:
 # Use `get_config` if you need to get a config by name in your code.
 _CONFIGS = [
     ###
+    ### SUAVE real tasks (xArm7/GELLO, 100 demos each) — π0.5 same-data baseline.
+    # Authors' pi05_aloha_full_base recipe verbatim: full finetune from pi05_base, 20k steps,
+    # batch 64, action_horizon 50 on the native 30 Hz stream, cosine 2.5e-5, EMA 0.99.
+    *[
+        TrainConfig(
+            name=f"pi05_xarm_{task}",
+            model=pi0_config.Pi0Config(pi05=True),
+            data=LeRobotXArmDataConfig(
+                repo_id=f"LEROBOT_REAL_{task}",
+                base_config=DataConfig(prompt_from_task=True),
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+            num_train_steps=20_000,
+            batch_size=64,
+            num_workers=8,
+            fsdp_devices=1,
+        )
+        for task in ("pick_vegetables", "organize_shoes", "sweep_pile")
+    ],
+    ###
+    ### DOMINO franka-panda single-arm-subset (25 tasks, 18,231 eps) — SUAVE/PUMA same-data baseline.
+    # DOMINO recipe (pi05_aloha_full_base): full finetune from pi05_base, 20k steps, batch 64.
+    TrainConfig(
+        name="pi05_franka_domino_full",
+        model=pi0_config.Pi0Config(pi05=True),
+        data=LeRobotFrankaPairDataConfig(
+            repo_id="LEROBOT_DOMINO_FRANKA25",
+            base_config=DataConfig(prompt_from_task=True),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        num_train_steps=20_000,
+        batch_size=64,
+        num_workers=8,
+        fsdp_devices=1,
+    ),
+    # π0 counterpart: DOMINO's pi0_base_aloha_robotwin_full recipe (full finetune from pi0_base,
+    # 30k steps, batch 32, fsdp 4) on the same Franka data.
+    TrainConfig(
+        name="pi0_franka_domino_full",
+        model=pi0_config.Pi0Config(),
+        data=LeRobotFrankaPairDataConfig(
+            repo_id="LEROBOT_DOMINO_FRANKA25",
+            base_config=DataConfig(prompt_from_task=True),
+        ),
+        freeze_filter=pi0_config.Pi0Config().get_freeze_filter(),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi0_base/params"),
+        num_train_steps=30_000,
+        batch_size=32,
+        num_workers=8,
+        fsdp_devices=4,
+    ),
+    # π0-FAST counterpart: DOMINO's pi0_fast_aloha_robotwin_full recipe (full finetune from
+    # pi0_fast_base, 30k steps, batch 32, fsdp 1) on the same Franka data.
+    TrainConfig(
+        name="pi0_fast_franka_domino_full",
+        model=pi0_fast.Pi0FASTConfig(),
+        data=LeRobotFrankaPairDataConfig(
+            repo_id="LEROBOT_DOMINO_FRANKA25",
+            base_config=DataConfig(prompt_from_task=True),
+        ),
+        freeze_filter=pi0_fast.Pi0FASTConfig().get_freeze_filter(),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi0_fast_base/params"),
+        num_train_steps=30_000,
+        batch_size=32,
+        num_workers=8,
+        fsdp_devices=1,
+    ),
     ### finetune config for robotwin
     ###
     # pi05_base by full

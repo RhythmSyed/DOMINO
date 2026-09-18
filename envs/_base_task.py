@@ -236,7 +236,11 @@ class Base_Task(gym.Env):
         sapien.render.set_camera_shader_dir("rt")
         sapien.render.set_ray_tracing_samples_per_pixel(32)
         sapien.render.set_ray_tracing_path_depth(8)
-        sapien.render.set_ray_tracing_denoiser("oidn")
+        # sapien's bundled OIDN CUDA denoiser crashes on H100/sm90 ("illegal
+        # memory access", poisons the CUDA context). Default stays oidn for
+        # local parity; SageMaker runs set SUAVE_RT_DENOISER=optix.
+        sapien.render.set_ray_tracing_denoiser(
+            os.environ.get("SUAVE_RT_DENOISER", "oidn"))
 
         # declare sapien scene
         scene_config = sapien.SceneConfig()

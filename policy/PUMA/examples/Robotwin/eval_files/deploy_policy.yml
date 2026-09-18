@@ -3,10 +3,10 @@ task_name: null
 task_config: null
 ckpt_setting: null
 seed: null
-instruction_type: unseen
+instruction_type: seen   # match our SUAVE runs (their default was unseen)
 
 # PUMA Client Parameters
 host: "127.0.0.1"
 port: 9001
-policy_ckpt_path: "/path/to/your/checkpoint/steps_100000_pytorch_model.pt"
+policy_ckpt_path: "/home/rhythmsyed/Desktop/suave/third_party/domino/policy/PUMA/playground/Pretrained_models/PUMA-ckpt/checkpoints/steps_100000_pytorch_model.pt"
 unnorm_key: "robotwin"

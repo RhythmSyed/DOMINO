@@ -232,6 +232,9 @@ OXE_NAMED_MIXTURES: Dict[str, List[Tuple[str, float]]] = {
     "aloha_place_object_scale_builder": [
         ("aloha_place_object_scale_builder",1.0),
     ],
+    "domino_franka25": [
+        ("domino_franka25", 1.0),
+    ],
     "aloha_move_can_pot_builder": [
         ("aloha_move_can_pot_builder",1.0),
     ],

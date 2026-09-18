@@ -1,0 +1,13 @@
+# Basic experiment configuration (keep unchanged)
+policy_name: null
+task_name: null
+task_config: null
+ckpt_setting: null
+seed: null
+instruction_type: seen
+
+# openpi websocket server (started per GPU by run_parallel_pi05_eval.py)
+host: 127.0.0.1
+port: 8000
+# actions executed open-loop per inference (authors' pi05 deploy_policy.yml: 50)
+pi0_step: 50

@@ -125,8 +125,12 @@ class CallbackHandler(ocp.AsyncCheckpointHandler):
         if jax.process_index() == 0:
             args.callback(directory)
 
+    # NOTE(suave): the fork pins orbax 0.11.1, which has no future.CommitFutureAwaitingContractedSignals
+    # (newer-openpi code). A concurrent.futures.Future satisfies orbax 0.11's Future protocol (.result()).
+    _executor = futures.ThreadPoolExecutor(max_workers=1)
+
     async def async_save(self, directory: epath.Path, args: CallbackSave) -> list[futures.Future]:
-        return [future.CommitFutureAwaitingContractedSignals(asyncio.to_thread(self.save, directory, args))]
+        return [self._executor.submit(self.save, directory, args)]
 
     def restore(self, *args, **kwargs):
         raise NotImplementedError("CallbackHandler does not support restore")
